@@ -15,7 +15,9 @@
     "child_process": "^1.0.2",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "jose": "^5.9.4",
     "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
     "uuid": "^10.0.0"
   }
 }

@@ -2,37 +2,58 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
-const jwt = require('jsonwebtoken');
-const app = express();
+const jwksRsa = require('jwks-rsa');
 const cors = require('cors');
+const { jwtDecrypt } = require('jose');
+
+const app = express();
 
 app.use(cors({
-    origin: 'https://boettscher.com.br' || 'http://localhost:3000',
+    origin: ['https://boettscher.com.br', 'http://localhost:3000'],
     methods: ['POST', 'GET'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(bodyParser.json());
 
-const taskQueue = [];
-const taskStatus = {};
+const client = jwksRsa({
+    jwksUri: 'https://rpa-boettscher.us.auth0.com/.well-known/jwks.json',
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5,
+});
 
-const authenticateToken = (req, res, next) => {
+// Função que obtém a chave de descriptografia
+async function getDecryptionKey(header) {
+    const key = await client.getSigningKey(header.kid);
+    return key.getPublicKey();  // Obtém a chave pública para descriptografar
+}
+
+// Middleware para descriptografar e validar o token JWT criptografado
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) return res.sendStatus(401);
+    if (!token) return res.sendStatus(401); // Nenhum token fornecido
 
-    jwt.verify(token, process.env.AUTH0_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
-        req.user = user;
+    try {
+        // Descriptografa o token usando a chave obtida
+        const { payload } = await jwtDecrypt(token, await getDecryptionKey({
+            alg: 'RSA-OAEP-256',  // Algoritmo de descriptografia, ajuste conforme necessário
+            enc: 'A256GCM',       // Tipo de criptografia, ajuste conforme necessário
+        }));
+
+        req.user = payload; // O payload contém os dados do usuário
         next();
-    });
+    } catch (err) {
+        console.error('Erro na descriptografia/verificação do token:', err);
+        return res.sendStatus(403); // Token inválido
+    }
 };
 
 const processTaskQueue = () => {
     if (taskQueue.length > 0) {
-        const currentTask = taskQueue.shift(); // Remove a tarefa da fila
+        const currentTask = taskQueue.shift();
         taskStatus[currentTask.id].status = 'executando';
 
         const { opcao, user, password, id } = currentTask;
