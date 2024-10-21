@@ -90,6 +90,7 @@ app.post('/executar', async (req, res) => {
 
 app.get('/minhas-tarefas', (req, res) => {
   const userEmail = req.headers.email;
+  console.log(userEmail)
 
   const userTasks = Object.entries(taskStatus)
     .filter(([_, task]) => task.userEmail === userEmail)
