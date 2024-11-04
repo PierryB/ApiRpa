@@ -21,7 +21,7 @@ const executeAutomation = (opcao, params) => {
   let exePath;
 
   if (opcao === '1. Download PDF Católica') {
-    exePath = "C:\\GitHub\\DownloadPdfCatolica\\FaturaPdfCatolica\\FaturaPdfCatolica\\bin\\Release\\net8.0\\FaturaPdfCatolica.exe";
+    exePath = "C:\\RPAs\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
     exePath = "";
     throw new Error('Opção Relatório FIPE ainda não disponível...');
