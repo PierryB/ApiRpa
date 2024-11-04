@@ -4,7 +4,6 @@ const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const { execFile } = require('child_process');
 const fs = require('fs');
-const { error } = require('console');
 
 const app = express();
 
@@ -24,15 +23,13 @@ const executeAutomation = (opcao, params) => {
   if (opcao === '1. Download PDF Católica') {
     exePath = "C:\\GitHub\\DownloadPdfCatolica\\FaturaPdfCatolica\\FaturaPdfCatolica\\bin\\Release\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
-    throw new Error('Opção Relatório FIPE ainda não disponível...');
     exePath = "";
+    throw new Error('Opção Relatório FIPE ainda não disponível...');
   }
 
   return new Promise((resolve, reject) => {
     execFile(exePath, params, (error, stdout, stderr) => {
       if (error) {
-        console.log("caiu no erro da execução")
-        console.log(stdout || stderr)
         return reject(`Erro na execução: ${stderr || stdout}`);
       }
 
@@ -41,8 +38,6 @@ const executeAutomation = (opcao, params) => {
       if (isPdf) {
         resolve({ status: 'Concluido', resultado: stdout.trim(), mensagem: 'PDF gerado com sucesso.' });
       } else {
-        console.log("caiu no erro da execução")
-        console.log(stdout || stderr)
         reject(`Erro na execução: ${stdout || stderr}`);
       }
     });
@@ -90,7 +85,6 @@ app.post('/executar', async (req, res) => {
 
 app.get('/minhas-tarefas', (req, res) => {
   const userEmail = req.headers.email;
-  console.log(userEmail)
 
   const userTasks = Object.entries(taskStatus)
     .filter(([_, task]) => task.userEmail === userEmail)
