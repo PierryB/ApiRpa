@@ -16,6 +16,11 @@ app.use(cors({
 
 app.use(bodyParser.json());
 
+const options = {
+  pfx: fs.readFileSync('C:\\Users\\Administrator\\Documents\\cert.pfx'),
+  passphrase: '#123',
+};
+
 let taskStatus = {};
 
 const executeAutomation = (opcao, params) => {
@@ -148,6 +153,6 @@ app.get('/status/:id', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+https.createServer(options, app).listen(PORT, () => {
+  console.log(`Servidor HTTPS rodando na porta ${PORT}`);
 });
