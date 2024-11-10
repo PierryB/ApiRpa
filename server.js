@@ -43,11 +43,11 @@ const executeAutomation = (opcao, params) => {
       }
 
       const filePath = stdout.trim();
+      const fileType = opcao === '1. Download PDF Católica' ? 'pdf' : 'excel';
       if (fs.existsSync(filePath)) {
-        const fileType = opcao === '1. Download PDF Católica' ? 'pdf' : 'excel';
         resolve({ status: 'Concluido', resultado: filePath, tipoArquivo: fileType, mensagem: 'Arquivo gerado com sucesso.' });
       } else {
-        reject(`Erro: O arquivo ${fileType} não foi gerado.`);
+        reject(`O arquivo ${fileType} não foi gerado. ${stdout.trim()}`);
       }
     });
   });
