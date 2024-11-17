@@ -6,6 +6,8 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const multer = require('multer');
+const upload = multer({ dest: 'C:\\temp\\uploads\\' });
 
 const app = express();
 
@@ -30,18 +32,20 @@ const executeAutomation = (opcao, params) => {
   if (opcao === '1. Download PDF Católica') {
     exePath = "C:\\RPAs\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
-    throw new Error('Opção Relatório FIPE ainda não disponível...');
+    throw new Error('Opção Relatório FIPE indisponível...');
     //exePath = "C:\\GitHub\\RelatorioFipe\\RelatorioFipe.exe";
+  } else if (opcao === '3. Consulta CNPJs') {
+    throw new Error('Opção Consulta CNPJs indisponível...');
+    // exePath = "C:\\RPAs\\net8.0\\ConsultaCNPJs.exe";
   } else {
     throw new Error('Opção inválida.');
   }
 
   return new Promise((resolve, reject) => {
-    execFile(exePath, params, (error, stdout, stderr) => {
+    execFile(exePath, params, (error, stdout) => {
       if (error) {
         return reject(error.message);
       }
-
       const filePath = stdout.trim();
       const fileType = opcao === '1. Download PDF Católica' ? 'pdf' : 'excel';
       if (fs.existsSync(filePath)) {
@@ -59,13 +63,12 @@ const lerUltimaLinhaDoLog = (diretorioTemp) => {
   if (!fs.existsSync(logPath)) {
     return 'Erro: Log de execução não encontrado.';
   }
-
   const logLines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(line => line.trim() !== '');
   return logLines.length > 0 ? logLines[logLines.length - 1] : 'Erro desconhecido.';
 };
 
-app.post('/executar', async (req, res) => {
-  const { opcao, user, password, marca, modelo, mes, userEmail } = req.body;
+app.post('/executar', upload.single('file'), async (req, res) => {
+  const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
   const diretorioTemp = `C:\\temp\\rpa\\${id}`;
   const currentTime = new Date().toLocaleString();
@@ -89,10 +92,17 @@ app.post('/executar', async (req, res) => {
       }
       params = [user, password, diretorioTemp];
     } else if (opcao === '2. Relatório FIPE') {
-      if (!marca || !modelo || !mes) {
+      if (!mes) {
         throw new Error('Parâmetros incompletos para gerar o Relatório FIPE.');
       }
-      params = [marca, modelo, mes, diretorioTemp];
+      params = [mes, diretorioTemp];
+    } else if (opcao === '3. Consulta CNPJs') {
+      if (!req.file) {
+        throw new Error('Arquivo Excel não anexado.');
+      }
+
+      const filePath = req.file.path;
+      params = [filePath, diretorioTemp];
     } else {
       throw new Error('Opção inválida.');
     }
@@ -145,7 +155,7 @@ app.get('/status/:id', (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename=Fatura_${Date.now()}.pdf`);
     } else if (tipoArquivo === 'excel') {
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=Relatorio_FIPE_${Date.now()}.xlsx`);
+      res.setHeader('Content-Disposition', `attachment; filename=Relatorio_${Date.now()}.xlsx`);
     }
     return fs.createReadStream(resultado).pipe(res);
   } else {
