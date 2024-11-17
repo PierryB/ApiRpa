@@ -25,6 +25,8 @@ const options = {
 };
 
 let taskStatus = {};
+let isExecutou = false;
+let mensagemErroRpa = '';
 
 const executeAutomation = (opcao, params) => {
   let exePath;
@@ -32,10 +34,12 @@ const executeAutomation = (opcao, params) => {
   if (opcao === '1. Download PDF Católica') {
     exePath = "C:\\RPAs\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
-    throw new Error('Opção Relatório FIPE indisponível...');
+    mensagemErroRpa = 'Opção Relatório FIPE indisponível...';
+    throw new Error(mensagemErroRpa);
     //exePath = "C:\\GitHub\\RelatorioFipe\\RelatorioFipe.exe";
   } else if (opcao === '3. Consulta CNPJs') {
-    throw new Error('Opção Consulta CNPJs indisponível...');
+    mensagemErroRpa = 'Opção Consulta CNPJs indisponível...';
+    throw new Error(mensagemErroRpa);
     // exePath = "C:\\RPAs\\net8.0\\ConsultaCNPJs.exe";
   } else {
     throw new Error('Opção inválida.');
@@ -43,6 +47,7 @@ const executeAutomation = (opcao, params) => {
 
   return new Promise((resolve, reject) => {
     execFile(exePath, params, (error, stdout) => {
+      isExecutou = true;
       if (error) {
         return reject(error.message);
       }
@@ -111,7 +116,16 @@ app.post('/executar', upload.single('file'), async (req, res) => {
     taskStatus[id] = { ...taskStatus[id], ...resultado };
     res.json({ id, mensagem: 'Execução iniciada.' });
   } catch (error) {
-    const mensagemErro = lerUltimaLinhaDoLog(diretorioTemp);
+    let mensagemErro
+    if (isExecutou)
+    {
+      mensagemErro = lerUltimaLinhaDoLog(diretorioTemp);
+      isExecutou = false;
+    }
+    else
+    {
+      mensagemErro = mensagemErroRpa;
+    }
     taskStatus[id].status = 'Falha';
     taskStatus[id].mensagem = mensagemErro;
     res.status(500).json({ mensagem: mensagemErro });
