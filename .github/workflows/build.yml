@@ -5,17 +5,32 @@ on:
     branches:
       - main
 
-
 jobs:
   build:
     name: Build and analyze
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: sonarsource/sonarqube-scan-action@v3
+
+      # Verifica se o servidor SonarQube está disponível
+      - name: Check SonarQube availability
+        id: check-sonarqube
+        run: |
+          if curl -s --head --request GET "${{ secrets.SONAR_HOST_URL }}" | grep "200 OK" > /dev/null; then
+            echo "SonarQube is available"
+            echo "available=true" >> $GITHUB_ENV
+          else
+            echo "SonarQube is not available"
+            echo "available=false" >> $GITHUB_ENV
+          fi
+
+      # Executa a análise apenas se o servidor estiver disponível
+      - name: Run SonarQube Scan
+        if: env.available == 'true'
+        uses: sonarsource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
