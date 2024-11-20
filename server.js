@@ -112,7 +112,7 @@ app.post('/executar', upload.single('file'), async (req, res) => {
       throw new Error('Opção inválida.');
     }
 
-    const resultado = await executeAutomation(opcao, params, diretorioTemp);
+    const resultado = await executeAutomation(opcao, params);
     taskStatus[id] = { ...taskStatus[id], ...resultado };
     res.json({ id, mensagem: 'Execução iniciada.' });
   } catch (error) {
