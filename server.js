@@ -32,15 +32,15 @@ const executeAutomation = (opcao, params) => {
   let exePath;
 
   if (opcao === '1. Download PDF Católica') {
-    exePath = "C:\\RPAs\\net8.0\\FaturaPdfCatolica.exe";
+    exePath = "C:\\RPAs\\FaturaCatolica\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
     mensagemErroRpa = 'Opção Relatório FIPE indisponível...';
     throw new Error(mensagemErroRpa);
-    //exePath = "C:\\GitHub\\RelatorioFipe\\RelatorioFipe.exe";
+    //exePath = "C:\\RPAs\\HistoricoFipe\\net8.0\\HistoricoFipe.exe";
   } else if (opcao === '3. Consulta CNPJs') {
     mensagemErroRpa = 'Opção Consulta CNPJs indisponível...';
     throw new Error(mensagemErroRpa);
-    // exePath = "C:\\RPAs\\net8.0\\ConsultaCNPJs.exe";
+    //exePath = "C:\\RPAs\\ConsultaCnpj\\net8.0\\ConsultaCNPJs.exe";
   } else {
     throw new Error('Opção inválida.');
   }
@@ -103,7 +103,7 @@ app.post('/executar', upload.single('file'), async (req, res) => {
       params = [mes, diretorioTemp];
     } else if (opcao === '3. Consulta CNPJs') {
       if (!req.file) {
-        throw new Error('Arquivo Excel não anexado.');
+        throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
       }
 
       const filePath = req.file.path;
