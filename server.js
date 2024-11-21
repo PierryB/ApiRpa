@@ -177,6 +177,31 @@ app.get('/status/:id', (req, res) => {
   }
 });
 
+app.delete('/excluir/:id', (req, res) => {
+  const { id } = req.params;
+  const userEmail = req.headers.email;
+
+  if (!id || id === 'undefined') {
+    return res.status(400).json({ mensagem: 'ID da execução inválido.' });
+  }
+
+  if (!taskStatus[id]) {
+    return res.status(404).json({ mensagem: 'Tarefa não encontrada.' });
+  }
+
+  if (taskStatus[id].userEmail !== userEmail) {
+    return res.status(403).json({ mensagem: 'Acesso negado para excluir esta tarefa.' });
+  }
+
+  const diretorioTemp = path.join('C:\\temp\\rpa', id);
+  if (fs.existsSync(diretorioTemp)) {
+    fs.rmSync(diretorioTemp, { recursive: true, force: true });
+  }
+
+  delete taskStatus[id];
+  res.json({ mensagem: 'Execução excluída com sucesso.' });
+});
+
 const PORT = process.env.PORT || 3001;
 https.createServer(options, app).listen(PORT, () => {
   console.log(`Servidor HTTPS rodando na porta ${PORT}`);
