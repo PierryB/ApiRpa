@@ -34,9 +34,7 @@ const executeAutomation = (opcao, params) => {
   if (opcao === '1. Download PDF Católica') {
     exePath = "C:\\RPAs\\FaturaCatolica\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
-    mensagemErroRpa = 'Opção Relatório FIPE indisponível...';
-    throw new Error(mensagemErroRpa);
-    //exePath = "C:\\RPAs\\HistoricoFipe\\net8.0\\HistoricoFipe.exe";
+    exePath = "C:\\RPAs\\HistoricoFipe\\net8.0\\HistoricoFipe.exe";
   } else if (opcao === '3. Consulta CNPJs') {
     mensagemErroRpa = 'Opção Consulta CNPJs indisponível...';
     throw new Error(mensagemErroRpa);
