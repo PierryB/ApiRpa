@@ -9,9 +9,7 @@ const https = require('https');
 const multer = require('multer');
 const upload = multer({ dest: 'C:\\temp\\uploads\\' });
 const app = express();
-
 const PORT = 3001;
-const certPath = 'C:\\Users\\Administrator\\Documents\\cert.pfx';
 
 app.use(cors({
   origin: ['https://boettscher.com.br', 'http://localhost:3000'],
@@ -216,10 +214,11 @@ app.delete('/excluir/:id', (req, res) => {
   res.json({ mensagem: 'Execução excluída com sucesso.' });
 });
 
-if (fs.existsSync(certPath)) {
+if (fs.existsSync(process.env.CERT_PATH)) {
+  require('dotenv').config();
   const options = {
-    pfx: fs.readFileSync(certPath),
-    passphrase: '#123',
+    pfx: fs.readFileSync(process.env.CERT_PATH),
+    passphrase: process.env.CERT_PASSPHRASE,
   };
 
   https.createServer(options, app).listen(PORT, () => {
