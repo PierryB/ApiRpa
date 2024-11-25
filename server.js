@@ -212,7 +212,7 @@ app.delete('/excluir/:id', (req, res) => {
     return res.status(403).json({ mensagem: 'Acesso negado para excluir esta tarefa.' });
   }
 
-  const diretorioTemp = path.join('C:\\temp\\rpa', id);
+  const diretorioTemp = path.join(process.env.TEMP_DIR, id);
   if (fs.existsSync(diretorioTemp)) {
     fs.rmSync(diretorioTemp, { recursive: true, force: true });
   }
