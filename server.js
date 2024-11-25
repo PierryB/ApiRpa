@@ -218,7 +218,7 @@ if (fs.existsSync(process.env.CERT_PATH)) {
   require('dotenv').config();
   const options = {
     pfx: fs.readFileSync(process.env.CERT_PATH),
-    passphrase: process.env.CERT_PASSPHRASE,
+    passphrase: process.env.CERT_PW,
   };
 
   https.createServer(options, app).listen(PORT, () => {
