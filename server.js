@@ -11,7 +11,12 @@ const app = express();
 const PORT = 3001;
 
 require('dotenv').config();
-const upload = multer({ dest: process.env.UPLOAD_DIR });
+const upload = multer({
+  dest: process.env.UPLOAD_DIR,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
 
 app.use(cors({
   origin: ['https://boettscher.com.br', 'http://localhost:3000'],
@@ -74,7 +79,7 @@ const executeAutomation = (opcao, params) => {
 };
 
 const lerUltimaLinhaDoLog = (diretorioTemp) => {
-  const logPath = path.join(process.env.TEMP_DIR, id, 'log.txt');
+  const logPath = path.join(diretorioTemp, 'log.txt');
   
   if (!fs.existsSync(logPath)) {
     return 'Erro: Log de execução não encontrado.';
