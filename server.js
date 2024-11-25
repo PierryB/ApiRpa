@@ -8,8 +8,8 @@ const path = require('path');
 const https = require('https');
 const multer = require('multer');
 const upload = multer({ dest: 'C:\\temp\\uploads\\' });
-
 const app = express();
+const PORT = 3001;
 
 app.use(cors({
   origin: ['https://boettscher.com.br', 'http://localhost:3000'],
@@ -19,14 +19,19 @@ app.use(cors({
 
 app.use(bodyParser.json());
 
-const options = {
-  pfx: fs.readFileSync('C:\\Users\\Administrator\\Documents\\cert.pfx'),
-  passphrase: '#123',
-};
-
 let taskStatus = {};
 let isExecutou = false;
 let mensagemErroRpa = '';
+
+const findFileByExtension = (directory, extension) => {
+  const files = fs.readdirSync(directory);
+  const matchedFiles = files.filter(file => path.extname(file) === `.${extension}`);
+  
+  if (matchedFiles.length === 0) {
+    throw new Error(`Nenhum arquivo com a extensão .${extension} encontrado no diretório ${directory}`);
+  }
+  return path.join(directory, matchedFiles[0]);
+};
 
 const executeAutomation = (opcao, params) => {
   let exePath;
@@ -49,12 +54,18 @@ const executeAutomation = (opcao, params) => {
       if (error) {
         return reject(error.message);
       }
-      const filePath = stdout.trim();
-      const fileType = opcao === '1. Download PDF Católica' ? 'pdf' : 'excel';
-      if (fs.existsSync(filePath)) {
-        resolve({ status: 'Concluido', resultado: filePath, tipoArquivo: fileType, mensagem: 'Arquivo gerado com sucesso.' });
-      } else {
-        reject(`O arquivo ${fileType} não foi gerado. ${stdout.trim()}`);
+      try {
+        const extension = opcao === '1. Download PDF Católica' ? 'pdf' : 'xlsx';
+        const filePath = findFileByExtension(params[params.length - 1], extension);
+
+        resolve({
+          status: 'Concluido',
+          resultado: filePath,
+          tipoArquivo: extension,
+          mensagem: 'Arquivo gerado com sucesso.',
+        });
+      } catch (err) {
+        reject(err.message);
       }
     });
   });
@@ -103,7 +114,6 @@ app.post('/executar', upload.single('file'), async (req, res) => {
       if (!req.file) {
         throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
       }
-
       const filePath = req.file.path;
       params = [filePath, diretorioTemp];
     } else {
@@ -112,7 +122,7 @@ app.post('/executar', upload.single('file'), async (req, res) => {
 
     const resultado = await executeAutomation(opcao, params);
     taskStatus[id] = { ...taskStatus[id], ...resultado };
-    res.json({ id, mensagem: 'Execução iniciada.' });
+    res.json({ id, mensagem: 'Execução finalizada.' });
   } catch (error) {
     let mensagemErro
     if (isExecutou)
@@ -162,13 +172,17 @@ app.get('/status/:id', (req, res) => {
   const { tipoArquivo, resultado } = statusInfo;
 
   if (statusInfo.status === 'Concluido' && resultado && fs.existsSync(resultado)) {
+    const fileName = tipoArquivo === 'pdf'
+      ? `FaturaCatolica ${Date.now()}.pdf`
+      : `Excel Tabela Fipe.xlsx`;
+
     if (tipoArquivo === 'pdf') {
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=Fatura_${Date.now()}.pdf`);
-    } else if (tipoArquivo === 'excel') {
+    } else if (tipoArquivo === 'xlsx') {
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=Relatorio_${Date.now()}.xlsx`);
     }
+
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     return fs.createReadStream(resultado).pipe(res);
   } else {
     res.json({ status: statusInfo.status, mensagem: statusInfo.mensagem });
@@ -200,7 +214,18 @@ app.delete('/excluir/:id', (req, res) => {
   res.json({ mensagem: 'Execução excluída com sucesso.' });
 });
 
-const PORT = process.env.PORT || 3001;
-https.createServer(options, app).listen(PORT, () => {
-  console.log(`Servidor HTTPS rodando na porta ${PORT}`);
-});
+if (fs.existsSync(process.env.CERT_PATH)) {
+  require('dotenv').config();
+  const options = {
+    pfx: fs.readFileSync(process.env.CERT_PATH),
+    passphrase: process.env.CERT_PW,
+  };
+
+  https.createServer(options, app).listen(PORT, () => {
+    console.log(`Servidor HTTPS rodando na porta ${PORT}`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`Servidor HTTP rodando na porta ${PORT}`);
+  });
+}
