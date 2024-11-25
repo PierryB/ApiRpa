@@ -7,9 +7,11 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const multer = require('multer');
-const upload = multer({ dest: 'C:\\temp\\uploads\\' });
 const app = express();
 const PORT = 3001;
+
+require('dotenv').config();
+const upload = multer({ dest: process.env.UPLOAD_DIR });
 
 app.use(cors({
   origin: ['https://boettscher.com.br', 'http://localhost:3000'],
@@ -72,7 +74,7 @@ const executeAutomation = (opcao, params) => {
 };
 
 const lerUltimaLinhaDoLog = (diretorioTemp) => {
-  const logPath = path.join(diretorioTemp, 'log.txt');
+  const logPath = path.join(process.env.TEMP_DIR, id, 'log.txt');
   
   if (!fs.existsSync(logPath)) {
     return 'Erro: Log de execução não encontrado.';
@@ -84,7 +86,7 @@ const lerUltimaLinhaDoLog = (diretorioTemp) => {
 app.post('/executar', upload.single('file'), async (req, res) => {
   const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
-  const diretorioTemp = `C:\\temp\\rpa\\${id}`;
+  const diretorioTemp = path.join(process.env.TEMP_DIR, id);
   const currentTime = new Date().toLocaleString();
 
   taskStatus[id] = { 
@@ -215,7 +217,6 @@ app.delete('/excluir/:id', (req, res) => {
 });
 
 if (fs.existsSync(process.env.CERT_PATH)) {
-  require('dotenv').config();
   const options = {
     pfx: fs.readFileSync(process.env.CERT_PATH),
     passphrase: process.env.CERT_PW,
