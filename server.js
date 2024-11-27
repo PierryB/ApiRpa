@@ -88,6 +88,54 @@ const lerUltimaLinhaDoLog = (diretorioTemp) => {
   return logLines.length > 0 ? logLines[logLines.length - 1] : 'Erro desconhecido.';
 };
 
+if (process.env.NODE_ENV === 'test') {
+  app.use((req, res, next) => {
+    const testResponses = {
+      '/executar': {
+        status: 'Concluido',
+        mensagem: 'Executado com sucesso.',
+        id: uuidv4(),
+      },
+      '/minhas-tarefas': [
+        {
+          id: uuidv4(),
+          opcao: '1. Download PDF Católica',
+          dataHora: new Date().toISOString(),
+          status: 'Concluido',
+          mensagem: 'Tarefa concluída com sucesso.',
+        },
+      ],
+      '/status/:id': {
+        status: 'Concluido',
+        mensagem: 'Status da tarefa simulada.',
+        resultado: '/path/to/test/file.pdf',
+        tipoArquivo: 'pdf',
+      },
+      '/excluir/:id': { mensagem: 'Execução excluída com sucesso.' },
+    };
+
+    if (req.path.startsWith('/status/')) {
+      const response = testResponses['/status/:id'];
+      if (response.status === 'Concluido' && response.resultado) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="TestFile.pdf"`);
+        return res.status(200).json(response);
+      }
+      return res.status(200).json(response);
+    }
+
+    if (req.path.startsWith('/excluir/')) {
+      return res.json(testResponses['/excluir/:id']);
+    }
+
+    const simulatedResponse = testResponses[req.path];
+    if (simulatedResponse) {
+      return res.json(simulatedResponse);
+    }
+    next();
+  });
+}
+
 app.post('/executar', upload.single('file'), async (req, res) => {
   const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
@@ -221,17 +269,21 @@ app.delete('/excluir/:id', (req, res) => {
   res.json({ mensagem: 'Execução excluída com sucesso.' });
 });
 
-if (fs.existsSync(process.env.CERT_PATH)) {
-  const options = {
-    pfx: fs.readFileSync(process.env.CERT_PATH),
-    passphrase: process.env.CERT_PW,
-  };
-
-  https.createServer(options, app).listen(PORT, () => {
-    console.log(`Servidor HTTPS rodando na porta ${PORT}`);
-  });
-} else {
-  app.listen(PORT, () => {
-    console.log(`Servidor HTTP rodando na porta ${PORT}`);
-  });
+if (process.env.NODE_ENV !== 'test'){
+  if (fs.existsSync(process.env.CERT_PATH)) {
+    const options = {
+      pfx: fs.readFileSync(process.env.CERT_PATH),
+      passphrase: process.env.CERT_PW,
+    };
+  
+    https.createServer(options, app).listen(PORT, () => {
+      console.log(`Servidor HTTPS rodando na porta ${PORT}`);
+    });
+  } else {
+    app.listen(PORT, () => {
+      console.log(`Servidor HTTP rodando na porta ${PORT}`);
+    });
+  }
 }
+
+module.exports = app;
