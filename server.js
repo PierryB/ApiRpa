@@ -88,6 +88,43 @@ const lerUltimaLinhaDoLog = (diretorioTemp) => {
   return logLines.length > 0 ? logLines[logLines.length - 1] : 'Erro desconhecido.';
 };
 
+const queue = [];
+let isProcessing = false;
+
+const processQueue = async () => {
+    if (isProcessing || queue.length === 0) {
+        return;
+    }
+
+    isProcessing = true;
+
+    const { id, opcao, params, diretorioTemp, userEmail, resolve, reject } = queue.shift();
+
+    taskStatus[id] = {
+        status: 'Em execução',
+        opcao,
+        userEmail,
+        mensagem: 'Execução iniciada...',
+        resultado: null,
+        tipoArquivo: null,
+        dataHora: new Date().toLocaleString(),
+    };
+
+    try {
+        const resultado = await executeAutomation(opcao, params);
+        taskStatus[id] = { ...taskStatus[id], ...resultado, status: 'Concluido' };
+        resolve({ id, mensagem: 'Execução concluída.' });
+    } catch (error) {
+        const mensagemErro = isExecutou ? lerUltimaLinhaDoLog(diretorioTemp) : mensagemErroRpa;
+        taskStatus[id].status = 'Falha';
+        taskStatus[id].mensagem = mensagemErro;
+        reject({ mensagem: mensagemErro });
+    } finally {
+        isProcessing = false;
+        processQueue();
+    }
+};
+
 if (process.env.NODE_ENV === 'test') {
   app.use((req, res, next) => {
     const testResponses = {
@@ -140,58 +177,41 @@ app.post('/executar', upload.single('file'), async (req, res) => {
   const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
   const diretorioTemp = path.join(process.env.TEMP_DIR, id);
-  const currentTime = new Date().toLocaleString();
 
-  taskStatus[id] = { 
-    status: 'Pendente', 
-    opcao, 
-    userEmail, 
-    mensagem: 'Em execução...', 
-    resultado: null,
-    tipoArquivo: null,
-    dataHora: currentTime 
-  };
-
+  let params = [];
   try {
-    let params = [];
+      if (opcao === '1. Download PDF Católica') {
+          if (!user || !password) {
+              throw new Error('Parâmetros incompletos para gerar a Fatura Católica.');
+          }
+          params = [user, password, diretorioTemp];
+      } else if (opcao === '2. Relatório FIPE') {
+          if (!mes) {
+              throw new Error('Parâmetros incompletos para gerar o Relatório FIPE.');
+          }
+          params = [mes, diretorioTemp];
+      } else if (opcao === '3. Consulta CNPJs') {
+          if (!req.file) {
+              throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
+          }
+          const filePath = req.file.path;
+          params = [filePath, diretorioTemp];
+      } else {
+          throw new Error('Opção inválida.');
+      }
 
-    if (opcao === '1. Download PDF Católica') {
-      if (!user || !password) {
-        throw new Error('Parâmetros incompletos para gerar a Fatura Católica.');
-      }
-      params = [user, password, diretorioTemp];
-    } else if (opcao === '2. Relatório FIPE') {
-      if (!mes) {
-        throw new Error('Parâmetros incompletos para gerar o Relatório FIPE.');
-      }
-      params = [mes, diretorioTemp];
-    } else if (opcao === '3. Consulta CNPJs') {
-      if (!req.file) {
-        throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
-      }
-      const filePath = req.file.path;
-      params = [filePath, diretorioTemp];
-    } else {
-      throw new Error('Opção inválida.');
-    }
+      // Adiciona a requisição à fila
+      const promise = new Promise((resolve, reject) => {
+          queue.push({ id, opcao, params, diretorioTemp, userEmail, resolve, reject });
+      });
 
-    const resultado = await executeAutomation(opcao, params);
-    taskStatus[id] = { ...taskStatus[id], ...resultado };
-    res.json({ id, mensagem: 'Execução finalizada.' });
+      processQueue(); // Inicia o processamento da fila, se necessário
+
+      res.status(202).json({ id, mensagem: 'Execução adicionada à fila. Aguarde o processamento.' });
+
+      await promise; // Espera pela execução para definir o status na fila
   } catch (error) {
-    let mensagemErro
-    if (isExecutou)
-    {
-      mensagemErro = lerUltimaLinhaDoLog(diretorioTemp);
-      isExecutou = false;
-    }
-    else
-    {
-      mensagemErro = mensagemErroRpa;
-    }
-    taskStatus[id].status = 'Falha';
-    taskStatus[id].mensagem = mensagemErro;
-    res.status(500).json({ mensagem: mensagemErro });
+      res.status(400).json({ mensagem: error.message });
   }
 });
 
@@ -229,7 +249,7 @@ app.get('/status/:id', (req, res) => {
   if (statusInfo.status === 'Concluido' && resultado && fs.existsSync(resultado)) {
     const fileName = tipoArquivo === 'pdf'
       ? `FaturaCatolica ${Date.now()}.pdf`
-      : `Excel Tabela Fipe.xlsx`;
+      : `Arquivo Excel.xlsx`;
 
     if (tipoArquivo === 'pdf') {
       res.setHeader('Content-Type', 'application/pdf');
