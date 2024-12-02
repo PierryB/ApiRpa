@@ -269,6 +269,7 @@ app.delete('/excluir/:id', (req, res) => {
   res.json({ mensagem: 'Execução excluída com sucesso.' });
 });
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 if (process.env.NODE_ENV !== 'test'){
   if (fs.existsSync(process.env.CERT_PATH)) {
     const options = {
