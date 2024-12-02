@@ -241,38 +241,41 @@ app.get('/minhas-tarefas', (req, res) => {
   res.json(allTasks);
 });
 
-
 app.get('/status/:id', (req, res) => {
   const { id } = req.params;
   const userEmail = req.headers.email;
 
   if (!taskStatus[id]) {
-    return res.status(404).json({ mensagem: 'Tarefa não encontrada.' });
+      return res.status(404).json({ mensagem: 'Tarefa não encontrada.' });
   }
 
   if (taskStatus[id].userEmail !== userEmail) {
-    return res.status(403).json({ mensagem: 'Acesso negado para essa tarefa.' });
+      return res.status(403).json({ mensagem: 'Acesso negado para essa tarefa.' });
   }
 
   const statusInfo = taskStatus[id];
   const { tipoArquivo, resultado } = statusInfo;
 
   if (statusInfo.status === 'Concluido' && resultado && fs.existsSync(resultado)) {
-    const fileName = tipoArquivo === 'pdf'
-      ? `FaturaCatolica ${Date.now()}.pdf`
-      : `Arquivo Excel.xlsx`;
+      const fileName = tipoArquivo === 'pdf'
+          ? `FaturaCatolica_${Date.now()}.pdf`
+          : `Relatorio_${Date.now()}.xlsx`;
 
-    if (tipoArquivo === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-    } else if (tipoArquivo === 'xlsx') {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    }
+      res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
 
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    return fs.createReadStream(resultado).pipe(res);
-  } else {
-    res.json({ status: statusInfo.status, mensagem: statusInfo.mensagem });
+      if (tipoArquivo === 'pdf') {
+          res.setHeader('Content-Type', 'application/pdf');
+      } else if (tipoArquivo === 'xlsx') {
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      }
+
+      return fs.createReadStream(resultado).pipe(res);
   }
+
+  return res.json({ 
+      status: statusInfo.status, 
+      mensagem: statusInfo.mensagem 
+  });
 });
 
 app.delete('/excluir/:id', (req, res) => {
