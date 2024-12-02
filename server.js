@@ -42,7 +42,7 @@ const findFileByExtension = (directory, extension) => {
 
 const executeAutomation = (opcao, params) => {
   let exePath;
-
+  isExecutou = false;
   if (opcao === '1. Download PDF Católica') {
     exePath = "C:\\RPAs\\FaturaCatolica\\net8.0\\FaturaPdfCatolica.exe";
   } else if (opcao === '2. Relatório FIPE') {
