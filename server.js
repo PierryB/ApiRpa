@@ -200,16 +200,15 @@ app.post('/executar', upload.single('file'), async (req, res) => {
           throw new Error('Opção inválida.');
       }
 
-      // Adiciona a requisição à fila
       const promise = new Promise((resolve, reject) => {
-          queue.push({ id, opcao, params, diretorioTemp, userEmail, resolve, reject });
+          queue.push({ id, opcao, params, diretorioTemp, userEmail, dataHora: new Date().toLocaleString(), resolve, reject });
       });
 
-      processQueue(); // Inicia o processamento da fila, se necessário
+      processQueue();
 
       res.status(202).json({ id, mensagem: 'Execução adicionada à fila. Aguarde o processamento.' });
 
-      await promise; // Espera pela execução para definir o status na fila
+      await promise;
   } catch (error) {
       res.status(400).json({ mensagem: error.message });
   }
@@ -217,19 +216,31 @@ app.post('/executar', upload.single('file'), async (req, res) => {
 
 app.get('/minhas-tarefas', (req, res) => {
   const userEmail = req.headers.email;
-
   const userTasks = Object.entries(taskStatus)
-    .filter(([_, task]) => task.userEmail === userEmail)
-    .map(([id, task]) => ({
-      id,
-      opcao: task.opcao,
-      dataHora: task.dataHora,
-      status: task.status,
-      mensagem: task.mensagem,
-    }));
+      .filter(([_, task]) => task.userEmail === userEmail)
+      .map(([id, task]) => ({
+          id,
+          opcao: task.opcao,
+          dataHora: task.dataHora,
+          status: task.status,
+          mensagem: task.mensagem,
+      }));
 
-  res.json(userTasks);
+  const queuedTasks = queue
+      .filter(task => task.userEmail === userEmail)
+      .map(task => ({
+          id: task.id,
+          opcao: task.opcao,
+          dataHora: new Date().toLocaleString(),
+          status: 'Na fila',
+          mensagem: 'Aguardando execução...',
+      }));
+
+  const allTasks = [...userTasks, ...queuedTasks];
+
+  res.json(allTasks);
 });
+
 
 app.get('/status/:id', (req, res) => {
   const { id } = req.params;
