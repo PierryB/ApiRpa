@@ -179,38 +179,54 @@ app.post('/executar', upload.single('file'), async (req, res) => {
   const diretorioTemp = path.join(process.env.TEMP_DIR, id);
 
   let params = [];
+
   try {
-      if (opcao === '1. Download PDF Católica') {
-          if (!user || !password) {
-              throw new Error('Parâmetros incompletos para gerar a Fatura Católica.');
-          }
-          params = [user, password, diretorioTemp];
-      } else if (opcao === '2. Relatório FIPE') {
-          if (!mes) {
-              throw new Error('Parâmetros incompletos para gerar o Relatório FIPE.');
-          }
-          params = [mes, diretorioTemp];
-      } else if (opcao === '3. Consulta CNPJs') {
-          if (!req.file) {
-              throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
-          }
-          const filePath = req.file.path;
-          params = [filePath, diretorioTemp];
-      } else {
-          throw new Error('Opção inválida.');
+    if (opcao === '1. Download PDF Católica') {
+      if (!user || !password) {
+        throw new Error('Parâmetros incompletos para gerar a Fatura Católica.');
       }
+      params = [user, password, diretorioTemp];
+    } else if (opcao === '2. Relatório FIPE') {
+      if (!mes) {
+        throw new Error('Parâmetros incompletos para gerar o Relatório FIPE.');
+      }
+      params = [mes, diretorioTemp];
+    } else if (opcao === '3. Consulta CNPJs') {
+      if (!req.file) {
+        throw new Error('Parâmetros incompletos para gerar a Consulta CNPJs.');
+      }
+      const filePath = req.file.path;
+      params = [filePath, diretorioTemp];
+    } else {
+      throw new Error('Opção inválida.');
+    }
 
-      const promise = new Promise((resolve, reject) => {
-          queue.push({ id, opcao, params, diretorioTemp, userEmail, dataHora: new Date().toLocaleString(), resolve, reject });
+    const promise = new Promise((resolve, reject) => {
+      queue.push({
+        id,
+        opcao,
+        params,
+        diretorioTemp,
+        userEmail,
+        dataHora: new Date().toLocaleString(),
+        resolve,
+        reject,
       });
+    });
 
-      processQueue();
+    processQueue();
 
-      res.status(202).json({ id, mensagem: 'Execução adicionada à fila. Aguarde o processamento.' });
+    res.status(202).json({
+      id,
+      mensagem: 'Execução adicionada à fila. Aguarde o processamento.',
+    });
 
-      await promise;
+    await promise;
+
   } catch (error) {
+    if (!res.headersSent) {
       res.status(400).json({ mensagem: error.message });
+    }
   }
 });
 
