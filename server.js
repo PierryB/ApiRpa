@@ -280,7 +280,7 @@ if (process.env.NODE_ENV !== 'test'){
       ca: ca,
     };
   
-    https.createServer(options, app).listen(PORT, () => {
+    https.createServer(options, app).listen(PORT, '0.0.0.0', () => {
       console.log(`Servidor HTTPS rodando na porta ${PORT}`);
     });
   } else {
