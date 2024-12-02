@@ -271,13 +271,9 @@ app.delete('/excluir/:id', (req, res) => {
 
 if (process.env.NODE_ENV !== 'test'){
   if (fs.existsSync(process.env.CERT_PATH)) {
-    const key = fs.readFileSync(process.env.PRIVATE_KEY_PATH);
-    const cert = fs.readFileSync(process.env.CERT_PATH);
-    const ca = fs.readFileSync(process.env.CA_BUNDLE_PATH);
     const options = {
-      key: key,
-      cert: cert,
-      ca: ca,
+      pfx: fs.readFileSync(process.env.CERT_PATH),
+      passphrase: process.env.CERT_PW,
     };
   
     https.createServer(options, app).listen(PORT, '0.0.0.0', () => {
