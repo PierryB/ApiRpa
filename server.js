@@ -269,12 +269,15 @@ app.delete('/excluir/:id', (req, res) => {
   res.json({ mensagem: 'Execução excluída com sucesso.' });
 });
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 if (process.env.NODE_ENV !== 'test'){
   if (fs.existsSync(process.env.CERT_PATH)) {
+    const key = fs.readFileSync(process.env.PRIVATE_KEY_PATH);
+    const cert = fs.readFileSync(process.env.CERT_PATH);
+    const ca = fs.readFileSync(process.env.CA_BUNDLE_PATH);
     const options = {
-      pfx: fs.readFileSync(process.env.CERT_PATH),
-      passphrase: process.env.CERT_PW,
+      key: key,
+      cert: cert,
+      ca: ca,
     };
   
     https.createServer(options, app).listen(PORT, () => {
