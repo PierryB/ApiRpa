@@ -88,6 +88,43 @@ const lerUltimaLinhaDoLog = (diretorioTemp) => {
   return logLines.length > 0 ? logLines[logLines.length - 1] : 'Erro desconhecido.';
 };
 
+const queue = [];
+let isProcessing = false;
+
+const processQueue = async () => {
+    if (isProcessing || queue.length === 0) {
+        return;
+    }
+
+    isProcessing = true;
+
+    const { id, opcao, params, diretorioTemp, userEmail, resolve, reject } = queue.shift();
+
+    taskStatus[id] = {
+        status: 'Em execução',
+        opcao,
+        userEmail,
+        mensagem: 'Execução iniciada...',
+        resultado: null,
+        tipoArquivo: null,
+        dataHora: new Date().toLocaleString(),
+    };
+
+    try {
+        const resultado = await executeAutomation(opcao, params);
+        taskStatus[id] = { ...taskStatus[id], ...resultado, status: 'Concluido' };
+        resolve({ id, mensagem: 'Execução concluída.' });
+    } catch (error) {
+        const mensagemErro = isExecutou ? lerUltimaLinhaDoLog(diretorioTemp) : mensagemErroRpa;
+        taskStatus[id].status = 'Falha';
+        taskStatus[id].mensagem = mensagemErro;
+        reject({ mensagem: mensagemErro });
+    } finally {
+        isProcessing = false;
+        processQueue();
+    }
+};
+
 if (process.env.NODE_ENV === 'test') {
   app.use((req, res, next) => {
     const testResponses = {
@@ -140,21 +177,10 @@ app.post('/executar', upload.single('file'), async (req, res) => {
   const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
   const diretorioTemp = path.join(process.env.TEMP_DIR, id);
-  const currentTime = new Date().toLocaleString();
 
-  taskStatus[id] = { 
-    status: 'Pendente', 
-    opcao, 
-    userEmail, 
-    mensagem: 'Em execução...', 
-    resultado: null,
-    tipoArquivo: null,
-    dataHora: currentTime 
-  };
+  let params = [];
 
   try {
-    let params = [];
-
     if (opcao === '1. Download PDF Católica') {
       if (!user || !password) {
         throw new Error('Parâmetros incompletos para gerar a Fatura Católica.');
@@ -175,40 +201,60 @@ app.post('/executar', upload.single('file'), async (req, res) => {
       throw new Error('Opção inválida.');
     }
 
-    const resultado = await executeAutomation(opcao, params);
-    taskStatus[id] = { ...taskStatus[id], ...resultado };
-    res.json({ id, mensagem: 'Execução finalizada.' });
+    const promise = new Promise((resolve, reject) => {
+      queue.push({
+        id,
+        opcao,
+        params,
+        diretorioTemp,
+        userEmail,
+        dataHora: new Date().toLocaleString(),
+        resolve,
+        reject,
+      });
+    });
+
+    processQueue();
+
+    res.status(202).json({
+      id,
+      mensagem: 'Execução adicionada à fila. Aguarde o processamento.',
+    });
+
+    await promise;
+
   } catch (error) {
-    let mensagemErro
-    if (isExecutou)
-    {
-      mensagemErro = lerUltimaLinhaDoLog(diretorioTemp);
-      isExecutou = false;
+    if (!res.headersSent) {
+      res.status(400).json({ mensagem: error.message });
     }
-    else
-    {
-      mensagemErro = mensagemErroRpa;
-    }
-    taskStatus[id].status = 'Falha';
-    taskStatus[id].mensagem = mensagemErro;
-    res.status(500).json({ mensagem: mensagemErro });
   }
 });
 
 app.get('/minhas-tarefas', (req, res) => {
   const userEmail = req.headers.email;
-
   const userTasks = Object.entries(taskStatus)
-    .filter(([_, task]) => task.userEmail === userEmail)
-    .map(([id, task]) => ({
-      id,
-      opcao: task.opcao,
-      dataHora: task.dataHora,
-      status: task.status,
-      mensagem: task.mensagem,
-    }));
+      .filter(([_, task]) => task.userEmail === userEmail)
+      .map(([id, task]) => ({
+          id,
+          opcao: task.opcao,
+          dataHora: task.dataHora,
+          status: task.status,
+          mensagem: task.mensagem,
+      }));
 
-  res.json(userTasks);
+  const queuedTasks = queue
+      .filter(task => task.userEmail === userEmail)
+      .map(task => ({
+          id: task.id,
+          opcao: task.opcao,
+          dataHora: new Date().toLocaleString(),
+          status: 'Na fila',
+          mensagem: 'Aguardando execução...',
+      }));
+
+  const allTasks = [...userTasks, ...queuedTasks];
+
+  res.json(allTasks);
 });
 
 app.get('/status/:id', (req, res) => {
@@ -216,32 +262,36 @@ app.get('/status/:id', (req, res) => {
   const userEmail = req.headers.email;
 
   if (!taskStatus[id]) {
-    return res.status(404).json({ mensagem: 'Tarefa não encontrada.' });
+      return res.status(404).json({ mensagem: 'Tarefa não encontrada.' });
   }
 
   if (taskStatus[id].userEmail !== userEmail) {
-    return res.status(403).json({ mensagem: 'Acesso negado para essa tarefa.' });
+      return res.status(403).json({ mensagem: 'Acesso negado para essa tarefa.' });
   }
 
   const statusInfo = taskStatus[id];
   const { tipoArquivo, resultado } = statusInfo;
 
   if (statusInfo.status === 'Concluido' && resultado && fs.existsSync(resultado)) {
-    const fileName = tipoArquivo === 'pdf'
-      ? `FaturaCatolica ${Date.now()}.pdf`
-      : `Excel Tabela Fipe.xlsx`;
+      const fileName = tipoArquivo === 'pdf'
+          ? `FaturaCatolica_${Date.now()}.pdf`
+          : `Relatorio_${Date.now()}.xlsx`;
 
-    if (tipoArquivo === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-    } else if (tipoArquivo === 'xlsx') {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    }
+      res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
 
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    return fs.createReadStream(resultado).pipe(res);
-  } else {
-    res.json({ status: statusInfo.status, mensagem: statusInfo.mensagem });
+      if (tipoArquivo === 'pdf') {
+          res.setHeader('Content-Type', 'application/pdf');
+      } else if (tipoArquivo === 'xlsx') {
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      }
+
+      return fs.createReadStream(resultado).pipe(res);
   }
+
+  return res.json({ 
+      status: statusInfo.status, 
+      mensagem: statusInfo.mensagem 
+  });
 });
 
 app.delete('/excluir/:id', (req, res) => {
