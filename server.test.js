@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '.env.test' });
 const request = require('supertest');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
