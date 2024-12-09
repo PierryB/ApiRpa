@@ -78,7 +78,7 @@ describe('Endpoint Tests', () => {
       .send({
         opcao: '1. Download PDF Católica',
         user: 'user123',
-        password: 'password123',
+        password: process.env.TEST_PASS,
         mes: 'January',
         userEmail: 'user@example.com',
       });
@@ -128,7 +128,7 @@ describe('Endpoint Tests', () => {
     expect(response.body[0]).toHaveProperty('id');
   });
 
-  it('Deve retornar erro ao tetnar excluir uma tarefa com e-mail errado', async () => {
+  it('Deve retornar erro ao tentar excluir uma tarefa com e-mail errado', async () => {
     const taskId = uuidv4();
     fs.existsSync.mockReturnValue(true);
     fs.rmSync.mockReturnValue(true);
@@ -173,7 +173,7 @@ describe('Endpoint Tests', () => {
       .send({
         opcao: 'Opção inválida',
         user: 'user123',
-        password: 'password123',
+        password: process.env.TEST_PASS,
         mes: 'January',
         userEmail: 'user@example.com',
       });
