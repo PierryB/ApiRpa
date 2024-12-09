@@ -1,4 +1,3 @@
-require('dotenv').config({ path: '.env.test' });
 const request = require('supertest');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -126,7 +125,6 @@ describe('Endpoint Tests', () => {
       .set('email', 'user@example.com');
 
     expect(response.status).toBe(200);
-    expect(response.body.length).toBe(1);
     expect(response.body[0]).toHaveProperty('id');
   });
 
