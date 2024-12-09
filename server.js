@@ -31,6 +31,10 @@ let isExecutou = false;
 let mensagemErroRpa = '';
 
 const findFileByExtension = (directory, extension) => {
+  if (!fs.existsSync(directory)) {
+    throw new Error(`Diretório ${directory} não encontrado.`);
+  }
+  
   const files = fs.readdirSync(directory);
   const matchedFiles = files.filter(file => path.extname(file) === `.${extension}`);
   
@@ -125,59 +129,10 @@ const processQueue = async () => {
     }
 };
 
-if (process.env.NODE_ENV === 'test') {
-  app.use((req, res, next) => {
-    const testResponses = {
-      '/executar': {
-        status: 'Concluido',
-        mensagem: 'Executado com sucesso.',
-        id: uuidv4(),
-      },
-      '/minhas-tarefas': [
-        {
-          id: uuidv4(),
-          opcao: '1. Download PDF Católica',
-          dataHora: new Date().toISOString(),
-          status: 'Concluido',
-          mensagem: 'Tarefa concluída com sucesso.',
-        },
-      ],
-      '/status/:id': {
-        status: 'Concluido',
-        mensagem: 'Status da tarefa simulada.',
-        resultado: '/path/to/test/file.pdf',
-        tipoArquivo: 'pdf',
-      },
-      '/excluir/:id': { mensagem: 'Execução excluída com sucesso.' },
-    };
-
-    if (req.path.startsWith('/status/')) {
-      const response = testResponses['/status/:id'];
-      if (response.status === 'Concluido' && response.resultado) {
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="TestFile.pdf"`);
-        return res.status(200).json(response);
-      }
-      return res.status(200).json(response);
-    }
-
-    if (req.path.startsWith('/excluir/')) {
-      return res.json(testResponses['/excluir/:id']);
-    }
-
-    const simulatedResponse = testResponses[req.path];
-    if (simulatedResponse) {
-      return res.json(simulatedResponse);
-    }
-    next();
-  });
-}
-
 app.post('/executar', upload.single('file'), async (req, res) => {
   const { opcao, user, password, mes, userEmail } = req.body;
   const id = uuidv4();
   const diretorioTemp = path.join(process.env.TEMP_DIR, id);
-
   let params = [];
 
   try {
@@ -336,4 +291,9 @@ if (process.env.NODE_ENV !== 'test'){
   }
 }
 
-module.exports = app;
+module.exports = {
+  app,
+  lerUltimaLinhaDoLog,
+  executeAutomation,
+  findFileByExtension,
+};

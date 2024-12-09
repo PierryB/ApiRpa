@@ -42,6 +42,11 @@ const config = {
     "clover"
   ],
 
+  setupFiles: ['dotenv/config'], 
+
+  // A configuração do Jest para o ambiente de teste
+  testEnvironment: 'node',
+
   // An object that configures minimum threshold enforcement for coverage results
   // coverageThreshold: undefined,
 
@@ -194,5 +199,6 @@ const config = {
   // Whether to use watchman for file crawling
   // watchman: true,
 };
+require('dotenv').config({ path: '.env.test' });
 
 module.exports = config;
