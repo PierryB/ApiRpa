@@ -25,4 +25,4 @@ jobs:
 
       - name: Deploy to S3
         run: |
-          aws s3 sync . s3://rpasbucket/API --delete
+          aws s3 sync . s3://rpasbucket/API --exclude "node_modules/*" --delete
